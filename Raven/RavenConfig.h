@@ -10,11 +10,13 @@
 
 @interface RavenConfig : NSObject
 
-- (BOOL)setDSN:(NSString *)DSN;
+- (instancetype)initWithDSN:(NSString *)DSN;
 
-@property (strong, nonatomic) NSURL *serverURL;
-@property (strong, nonatomic) NSString *publicKey;
-@property (strong, nonatomic) NSString *secretKey;
-@property (strong, nonatomic) NSString *projectId;
+@property (strong, nonatomic, readonly) NSString *DSN;
+
+@property (strong, nonatomic, readonly) NSURL *serverURL;
+@property (strong, nonatomic, readonly) NSString *publicKey;
+@property (strong, nonatomic, readonly) NSString *secretKey;
+@property (strong, nonatomic, readonly) NSString *projectId;
 
 @end

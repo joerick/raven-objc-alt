@@ -42,7 +42,10 @@
 
 - (IBAction)sendMessage {
     [self addStatus:@"Sending message..."];
-    RavenCaptureMessage(@"TEST %i %@ %f", 1, @"2", 3.0);
+    
+//    [[RavenClient sharedClient] send:[RavenMessage messageWithFormat:@"TEST %i %@ %f", 1, @"2", 3.0]];
+//    RavenCaptureMessage(@"TEST %i %@ %f", 1, @"2", 3.0);
+    RavenLog(@"TEST %i %@ %f", 1, @"2", 3.0);
 }
 
 - (IBAction)generateException {

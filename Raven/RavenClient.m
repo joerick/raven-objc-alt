@@ -8,327 +8,210 @@
 
 #import <sys/utsname.h>
 #import "RavenClient.h"
-#import "RavenClient_Private.h"
 #import "RavenConfig.h"
-#import "RavenJSONUtilities.h"
 
-NSString *const kRavenLogLevelArray[] = {
-    @"debug",
-    @"info",
-    @"warning",
-    @"error",
-    @"fatal"
-};
+NSString *const userDefaultsKey = @"com.getmixim.RavenClient";
 
-NSString *const userDefaultsKey = @"nl.mixedCase.RavenClient.Exceptions";
-NSString *const sentryProtocol = @"4";
-NSString *const sentryClient = @"raven-objc/0.1.0";
 
-static RavenClient *sharedClient = nil;
+@interface RavenClient () <NSURLConnectionDelegate>
+
+@property (strong, nonatomic) RavenConfig *config;
+@property (copy, nonatomic) NSArray *deferredMessages;
+
+- (NSDictionary *)tagsWithDefaults;
+- (NSDictionary *)defaultTags;
+
+@end
+
+void exceptionHandler(NSException *exception)
+{
+	[[RavenClient sharedClient] defer:[RavenMessage messageWithException:exception
+                                                                   level:kRavenLogLevelFatal]];
+}
 
 @implementation RavenClient
 
-void exceptionHandler(NSException *exception) {
-	[[RavenClient sharedClient] captureException:exception sendNow:NO];
-}
+#pragma mark - Class
 
-#pragma mark - Setters and getters
-
-- (NSDateFormatter *)dateFormatter {
-    if (!_dateFormatter) {
-        NSTimeZone *timeZone = [NSTimeZone timeZoneWithName:@"UTC"];
-        _dateFormatter = [[NSDateFormatter alloc] init];
-        [_dateFormatter setTimeZone:timeZone];
-        [_dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss"];
-    }
-
-    return _dateFormatter;
-}
-
-- (void)setTags:(NSDictionary *)tags {
-    [self setTags:tags withDefaultValues:YES];
-}
-
-- (void)setTags:(NSDictionary *)tags withDefaultValues:(BOOL)withDefaultValues {
-    NSMutableDictionary *mTags = [[NSMutableDictionary alloc] initWithDictionary:tags];
-
-    if (withDefaultValues && ![mTags objectForKey:@"Build version"]) {
-        NSString *buildVersion = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"];
-        if (buildVersion) {
-            [mTags setObject:buildVersion forKey:@"Build version"];
++ (RavenClient *)sharedClient
+{
+    static RavenClient *result = nil;
+    
+    @synchronized(self) {
+        if (!result) {
+            result = [[self alloc] init];
         }
     }
-
-#if TARGET_OS_IPHONE
-    if (withDefaultValues && ![mTags objectForKey:@"OS version"]) {
-        NSString *osVersion = [[UIDevice currentDevice] systemVersion];
-        [mTags setObject:osVersion forKey:@"OS version"];
-    }
-
-    if (withDefaultValues && ![mTags objectForKey:@"Device model"]) {
-        struct utsname systemInfo;
-        uname(&systemInfo);
-        NSString *deviceModel = [NSString stringWithCString:systemInfo.machine
-                                                   encoding:NSUTF8StringEncoding];
-        [mTags setObject:deviceModel forKey:@"Device model"];
-    }
-#endif
-
-    _tags = mTags;
+    
+    return result;
 }
 
-#pragma mark - Singleton and initializers
-
-+ (RavenClient *)clientWithDSN:(NSString *)DSN {
-    return [[self alloc] initWithDSN:DSN];
-}
-
-+ (RavenClient *)clientWithDSN:(NSString *)DSN extra:(NSDictionary *)extra {
-    return [[self alloc] initWithDSN:DSN extra:extra];
-}
-
-+ (RavenClient *)clientWithDSN:(NSString *)DSN extra:(NSDictionary *)extra tags:(NSDictionary *)tags {
-    return [[self alloc] initWithDSN:DSN extra:extra tags:tags];
-}
-
-+ (RavenClient *)sharedClient {
-    return sharedClient;
-}
-
-- (id)initWithDSN:(NSString *)DSN {
-    return [self initWithDSN:DSN extra:@{}];
-}
-
-- (id)initWithDSN:(NSString *)DSN extra:(NSDictionary *)extra {
-    return [self initWithDSN:DSN extra:extra tags:@{}];
-}
-
-- (id)initWithDSN:(NSString *)DSN extra:(NSDictionary *)extra tags:(NSDictionary *)tags {
-    self = [super init];
-    if (self) {
-        self.config = [[RavenConfig alloc] init];
-        self.extra = extra;
-        self.tags = tags;
-
-        // Parse DSN
-        if (![self.config setDSN:DSN]) {
-            NSLog(@"Invalid DSN %@!", DSN);
-            return nil;
-        }
-
-        // Save singleton
-        if (sharedClient == nil) {
-            sharedClient = self;
-        }
-    }
-
-    return self;
-}
-
-#pragma mark - Messages
-
-- (void)captureMessage:(NSString *)message {
-    [self captureMessage:message level:kRavenLogLevelDebugInfo];
-}
-
-- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level {
-    [self captureMessage:message level:level method:nil file:nil line:0];
-}
-
-- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level method:(const char *)method file:(const char *)file line:(NSInteger)line {
-
-    [self captureMessage:message level:level additionalExtra:nil additionalTags:nil method:method file:file line:line];
-}
-
-- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level additionalExtra:(NSDictionary *)additionalExtra additionalTags:(NSDictionary *)additionalTags {
-    [self captureMessage:message level:level additionalExtra:additionalExtra additionalTags:additionalTags method:nil file:nil line:0];
-}
-
-- (void)captureMessage:(NSString *)message
-                 level:(RavenLogLevel)level
-       additionalExtra:(NSDictionary *)additionalExtra
-        additionalTags:(NSDictionary *)additionalTags
-                method:(const char *)method
-                  file:(const char *)file
-                  line:(NSInteger)line {
-    NSArray *stacktrace;
-    if (method && file && line) {
-        NSDictionary *frame = [NSDictionary dictionaryWithObjectsAndKeys:
-                               [[NSString stringWithUTF8String:file] lastPathComponent], @"filename",
-                               [NSString stringWithUTF8String:method], @"function",
-                               [NSNumber numberWithInt:line], @"lineno",
-                               nil];
-
-        stacktrace = [NSArray arrayWithObject:frame];
-    }
-
-    NSDictionary *data = [self prepareDictionaryForMessage:message
-                                                     level:level
-                                           additionalExtra:additionalExtra
-                                            additionalTags:additionalTags
-                                                   culprit:file ? [NSString stringWithUTF8String:file] : nil
-                                                stacktrace:stacktrace
-                                                 exception:nil];
-
-    [self sendDictionary:data];
-}
-
-#pragma mark - Exceptions
-
-- (void)captureException:(NSException *)exception {
-    [self captureException:exception sendNow:YES];
-}
-
-- (void)captureException:(NSException *)exception sendNow:(BOOL)sendNow {
-   [self captureException:exception additionalExtra:nil additionalTags:nil sendNow:sendNow];
-}
-
-- (void)captureException:(NSException *)exception additionalExtra:(NSDictionary *)additionalExtra additionalTags:(NSDictionary *)additionalTags sendNow:(BOOL)sendNow {
-    NSString *message = [NSString stringWithFormat:@"%@: %@", exception.name, exception.reason];
-
-    NSDictionary *exceptionDict = [NSDictionary dictionaryWithObjectsAndKeys:
-                                   exception.name, @"type",
-                                   exception.reason, @"value",
-                                   nil];
-
-    NSArray *callStack = [exception callStackSymbols];
-    NSMutableArray *stacktrace = [[NSMutableArray alloc] initWithCapacity:[callStack count]];
-    for (NSString *call in callStack) {
-        [stacktrace addObject:[NSDictionary dictionaryWithObjectsAndKeys:call, @"function", nil]];
-    }
-
-    NSDictionary *data = [self prepareDictionaryForMessage:message
-                                                     level:kRavenLogLevelDebugFatal
-                                           additionalExtra:additionalExtra
-                                            additionalTags:additionalTags
-                                                   culprit:nil
-                                                stacktrace:stacktrace
-                                                 exception:exceptionDict];
-
-    if (!sendNow) {
-        // We can't send this exception to Sentry now, e.g. because the app is killed before the
-        // connection can be made. So, save it into NSUserDefaults.
-        NSArray *reports = [[NSUserDefaults standardUserDefaults] objectForKey:userDefaultsKey];
-        if (reports != nil) {
-            NSMutableArray *reportsCopy = [reports mutableCopy];
-            [reportsCopy addObject:data];
-            [[NSUserDefaults standardUserDefaults] setObject:reportsCopy forKey:userDefaultsKey];
-        } else {
-            reports = [NSArray arrayWithObject:data];
-            [[NSUserDefaults standardUserDefaults] setObject:reports forKey:userDefaultsKey];
-        }
-        [[NSUserDefaults standardUserDefaults] synchronize];
-    } else {
-        [self sendDictionary:data];
-    }
-}
-
-- (void)setupExceptionHandler {
++ (void)setupExceptionHandler
+{
     NSSetUncaughtExceptionHandler(&exceptionHandler);
-
-    // Process saved crash reports
-    NSArray *reports = [[NSUserDefaults standardUserDefaults] objectForKey:userDefaultsKey];
-    if (reports != nil && [reports count]) {
-        for (NSDictionary *data in reports) {
-            [self sendDictionary:data];
-        }
-        [[NSUserDefaults standardUserDefaults] setObject:[NSArray array] forKey:userDefaultsKey];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-    }
 }
 
-#pragma mark - Private methods
-
-- (NSString *)generateUUID {
-    CFUUIDRef theUUID = CFUUIDCreate(NULL);
-    CFStringRef string = CFUUIDCreateString(NULL, theUUID);
-    CFRelease(theUUID);
-    NSString *res = [(__bridge NSString *)string stringByReplacingOccurrencesOfString:@"-" withString:@""];
-    CFRelease(string);
-    return res;
++ (void)setupSharedClientDSN:(NSString *)DSN
+{
+    [RavenClient sharedClient].DSN = DSN;
+    [[RavenClient sharedClient] sendDeferred];
+    
+    [RavenClient setupExceptionHandler];
 }
 
-- (NSDictionary *)prepareDictionaryForMessage:(NSString *)message
-                                        level:(RavenLogLevel)level
-                              additionalExtra:(NSDictionary *)additionalExtra
-                               additionalTags:(NSDictionary *)additionalTags
-                                      culprit:(NSString *)culprit
-                                   stacktrace:(NSArray *)stacktrace
-                                    exception:(NSDictionary *)exceptionDict {
-    NSDictionary *stacktraceDict = [NSDictionary dictionaryWithObjectsAndKeys:stacktrace, @"frames", nil];
+#pragma mark - Instance
 
-    NSMutableDictionary *extra = [NSMutableDictionary dictionaryWithDictionary:self.extra];
-    if (additionalExtra.count) {
-        [extra addEntriesFromDictionary:additionalExtra];
+- (void)send:(RavenMessage *)message
+{
+    if (!message.user) {
+        message.user = self.user;
     }
-
-    NSMutableDictionary *tags = [NSMutableDictionary dictionaryWithDictionary:self.tags];
-    if (additionalTags.count) {
-        [tags addEntriesFromDictionary:additionalTags];
-    }
-
-    return [NSDictionary dictionaryWithObjectsAndKeys:
-            [self generateUUID], @"event_id",
-            self.config.projectId, @"project",
-            [self.dateFormatter stringFromDate:[NSDate date]], @"timestamp",
-            kRavenLogLevelArray[level], @"level",
-            @"objc", @"platform",
-
-            extra, @"extra",
-            tags, @"tags",
-
-            message, @"message",
-            culprit ?: @"", @"culprit",
-            stacktraceDict, @"stacktrace",
-            exceptionDict, @"exception",
-            nil];
-}
-
-- (void)sendDictionary:(NSDictionary *)dict {
+    
+    NSDictionary *messageDictionary = [message dictionaryRepresentationWithExtra:self.extra tags:self.tags];
+    
     NSError *error = nil;
     
-    NSData *JSON = JSONEncode(dict, &error);
-    [self sendJSON:JSON];
-}
-
-- (void)sendJSON:(NSData *)JSON {
-    NSString *header = [NSString stringWithFormat:@"Sentry sentry_version=%@, sentry_client=%@, sentry_timestamp=%d, sentry_key=%@, sentry_secret=%@",
-                        sentryProtocol,
-                        sentryClient,
-                        (NSInteger)[NSDate timeIntervalSinceReferenceDate],
-                        self.config.publicKey,
-                        self.config.secretKey];
-
+    NSData *messageJSON = [NSJSONSerialization dataWithJSONObject:messageDictionary
+                                                          options:0
+                                                            error:&error];
+    
+    if (!messageJSON) {
+        NSLog(@"Failed to serialize raven message. %@", error);
+        
+        return;
+    }
+    
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:self.config.serverURL];
+
     [request setHTTPMethod:@"POST"];
     [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
     [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-    [request setValue:[NSString stringWithFormat:@"%d", [JSON length]] forHTTPHeaderField:@"Content-Length"];
-    [request setHTTPBody:JSON];
-    [request setValue:header forHTTPHeaderField:@"X-Sentry-Auth"];
+    [request setValue:[NSString stringWithFormat:@"%lu", (unsigned long)[messageJSON length]]
+   forHTTPHeaderField:@"Content-Length"];
 
-    NSURLConnection *connection = [NSURLConnection connectionWithRequest:request delegate:self];
-    if (connection) {
-        self.receivedData = [NSMutableData data];
+    [request setHTTPBody:messageJSON];
+    [request setValue:[NSString stringWithFormat:
+                       @"Sentry sentry_version=5, sentry_client=raven-objc-alt/0.1.0, sentry_timestamp=%ld, sentry_key=%@, sentry_secret=%@",
+                       (long)[[NSDate date] timeIntervalSince1970],
+                       self.config.publicKey,
+                       self.config.secretKey]
+   forHTTPHeaderField:@"X-Sentry-Auth"];
+    
+    [NSURLConnection sendAsynchronousRequest:request
+                                       queue:[NSOperationQueue mainQueue]
+                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError) {
+                               NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+                               
+                               BOOL httpSuccess = httpResponse.statusCode == 200;
+                               
+                               if (!httpSuccess) {
+                                   NSLog(@"Failed to log event with Sentry! Server error %li %@",
+                                         (long)httpResponse.statusCode,
+                                         httpResponse.allHeaderFields[@"X-Sentry-Error"]);
+                               } else if (connectionError) {
+                                   NSLog(@"Failed to send event to Sentry! %@ %@",
+                                         connectionError.localizedDescription,
+                                         connectionError.userInfo[NSURLErrorFailingURLStringErrorKey]);
+                               } else {
+                                   NSLog(@"Event sent to Sentry");
+                               }
+                           }];
+}
+
+- (void)defer:(RavenMessage *)message
+{
+    self.deferredMessages = [self.deferredMessages arrayByAddingObject:message];
+}
+
+- (void)sendDeferred
+{
+    for (RavenMessage *message in self.deferredMessages) {
+        [self send:message];
     }
+    
+    self.deferredMessages = @[];
 }
 
-#pragma mark - NSURLConnectionDelegate
+#pragma mark - Properties
 
-- (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response {
-    [self.receivedData setLength:0];
+- (NSString *)DSN
+{
+    return self.config.DSN;
 }
 
-- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
-    [self.receivedData appendData:data];
+- (void)setDSN:(NSString *)DSN
+{
+    self.config = [[RavenConfig alloc] initWithDSN:DSN];
 }
 
-- (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
-    NSLog(@"Connection failed! Error - %@ %@", [error localizedDescription], [[error userInfo] objectForKey:NSURLErrorFailingURLStringErrorKey]);
+#pragma mark - Private
+
+- (NSDictionary *)tagsWithDefaults
+{
+    NSMutableDictionary *result = [self.tags mutableCopy];
+    
+    if (self.sendDefaultTags) {
+        [result addEntriesFromDictionary:self.defaultTags];
+    }
+    
+    return result;
 }
 
-- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-    NSLog(@"JSON sent to Sentry");
+- (NSDictionary *)defaultTags
+{
+    NSString *buildVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    NSString *deviceModel = [NSString stringWithUTF8String:systemInfo.machine];
+
+#if TARGET_OS_IPHONE
+    return @{ @"Build version": buildVersion,
+              @"Device model": deviceModel,
+              @"OS version": [[UIDevice currentDevice] systemVersion] };
+#else
+    return @{ @"Build version": buildVersion,
+              @"Device model": deviceModel };
+#endif
+}
+
+- (NSArray *)deferredMessages
+{
+    NSData *data = [[NSUserDefaults standardUserDefaults] dataForKey:userDefaultsKey];
+    
+    return [NSKeyedUnarchiver unarchiveObjectWithData:data] ?: @[];
+}
+
+- (void)setDeferredMessages:(NSArray *)deferredMessages
+{
+    [[NSUserDefaults standardUserDefaults] setObject:[NSKeyedArchiver archivedDataWithRootObject:deferredMessages]
+                                              forKey:userDefaultsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+@end
+
+
+@implementation RavenClient (Convenience)
+
+- (void)captureMessage:(NSString *)message
+{
+    [self send:[RavenMessage messageWithString:message]];
+}
+
+- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level
+{
+    [self send:[RavenMessage messageWithString:message level:level]];
+}
+
+- (void)captureError:(NSError *)error
+{
+    [self send:[RavenMessage messageWithError:error]];
+}
+
+- (void)captureException:(NSException *)exception
+{
+    [self send:[RavenMessage messageWithException:exception]];
 }
 
 @end

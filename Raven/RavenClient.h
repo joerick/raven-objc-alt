@@ -8,74 +8,60 @@
 
 #import <Foundation/Foundation.h>
 
-#define RavenCaptureMessage( s, ... ) [[RavenClient sharedClient] captureMessage:[NSString stringWithFormat:(s), ##__VA_ARGS__] level:kRavenLogLevelDebugInfo method:__FUNCTION__ file:__FILE__ line:__LINE__]
+#import "RavenMessage.h"
 
-typedef enum {
-    kRavenLogLevelDebug,
-    kRavenLogLevelDebugInfo,
-    kRavenLogLevelDebugWarning,
-    kRavenLogLevelDebugError,
-    kRavenLogLevelDebugFatal
-} RavenLogLevel;
+#define RavenLog( s, ... ) [[RavenClient sharedClient] send: \
+                            [RavenMessage messageWithLevel:kRavenLogLevelInfo \
+                                                    format:(s), ##__VA_ARGS__]]
 
 
-@interface RavenClient : NSObject <NSURLConnectionDelegate>
+@interface RavenClient : NSObject
+
++ (RavenClient *)sharedClient;
++ (void)setupExceptionHandler;
+
++ (void)setupSharedClientDSN:(NSString *)DSN;
+
+@property (strong, nonatomic) NSString *DSN;
 
 @property (strong, nonatomic) NSDictionary *extra;
 @property (strong, nonatomic) NSDictionary *tags;
+@property (strong, nonatomic) NSDictionary *user;
 
 /**
- * By setting tags with setTags: selector it will also set default settings:
+ * If this property is true will send default tags in addition to any supplied in the tags property:
  * - Build version
- * - OS version (on iOS)
  * - Device model (on iOS)
- *
- * For full control use this method.
+ * - OS version (on iOS)
+ * 
+ * By default, this is true.
  */
-- (void)setTags:(NSDictionary *)tags withDefaultValues:(BOOL)withDefaultValues;
-
-// Singleton and initializers
-+ (RavenClient *)clientWithDSN:(NSString *)DSN;
-+ (RavenClient *)clientWithDSN:(NSString *)DSN extra:(NSDictionary *)extra;
-+ (RavenClient *)clientWithDSN:(NSString *)DSN extra:(NSDictionary *)extra tags:(NSDictionary *)tags;
-+ (RavenClient *)sharedClient;
-
-- (id)initWithDSN:(NSString *)DSN;
-- (id)initWithDSN:(NSString *)DSN extra:(NSDictionary *)extra;
-- (id)initWithDSN:(NSString *)DSN extra:(NSDictionary *)extra tags:(NSDictionary *)tags;
+@property (assign, nonatomic) BOOL sendDefaultTags;
 
 /**
- * Messages
- *
- * All entries from additionalExtra/additionalTags are added to extra/tags.
- *
- * If dictionaries contain the same key, the entries from extra/tags dictionaries will be replaced with entries
- * from additionalExtra/additionalTags dictionaries.
+ * Sends the RavenMessage now.
  */
+- (void)send:(RavenMessage *)message;
+
+/**
+ * Saves the RavenMessage, to be sent on the next call to -sendDeferred. Messages are persisted to disk, so this is
+ * useful when the app is going to crash.
+ */
+- (void)defer:(RavenMessage *)message;
+
+/**
+ * Sends any messages previously deferred using -defer:
+ */
+- (void)sendDeferred;
+
+@end
+
+
+@interface RavenClient (Convenience)
+
 - (void)captureMessage:(NSString *)message;
 - (void)captureMessage:(NSString *)message level:(RavenLogLevel)level;
-- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level method:(const char *)method file:(const char *)file line:(NSInteger)line;
-- (void)captureMessage:(NSString *)message level:(RavenLogLevel)level additionalExtra:(NSDictionary *)additionalExtra additionalTags:(NSDictionary *)additionalTags;
-
-- (void)captureMessage:(NSString *)message
-                 level:(RavenLogLevel)level
-       additionalExtra:(NSDictionary *)additionalExtra
-        additionalTags:(NSDictionary *)additionalTags
-                method:(const char *)method
-                  file:(const char *)file
-                  line:(NSInteger)line;
-
-/**
- * Exceptions
- *
- * All entries from additionalExtra/additionalTags are added to extra/tags.
- *
- * If dictionaries contain the same key, the entries from extra/tags dictionaries will be replaced with entries
- * from additionalExtra/additionalTags dictionaries.
- */
+- (void)captureError:(NSError *)error;
 - (void)captureException:(NSException *)exception;
-- (void)captureException:(NSException *)exception sendNow:(BOOL)sendNow;
-- (void)captureException:(NSException *)exception additionalExtra:(NSDictionary *)additionalExtra additionalTags:(NSDictionary *)additionalTags sendNow:(BOOL)sendNow;
-- (void)setupExceptionHandler;
 
 @end
