@@ -80,8 +80,8 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
     result.extra = error.userInfo;
     result.level = level;
     
-    if ([error respondsToSelector:@selector(stackTrace)]) {
-        NSArray *callStack = [error performSelector:@selector(stackTrace)];
+    if ([error respondsToSelector:@selector(stacktrace)]) {
+        NSArray *callStack = [error performSelector:@selector(stacktrace)];
         result.stacktrace = [RavenMessage stacktraceDictFromCallStackSymbols:callStack];
     }
     
@@ -173,6 +173,7 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
         self.stacktrace = [aDecoder decodeObjectForKey:@"stacktrace"];
         self.exception = [aDecoder decodeObjectForKey:@"exception"];
         self.user = [aDecoder decodeObjectForKey:@"user"];
+        self.formatString = [aDecoder decodeObjectForKey:@"formatString"];
     }
     
     return self;
@@ -189,6 +190,7 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
     [aCoder encodeObject:self.stacktrace forKey:@"stacktrace"];
     [aCoder encodeObject:self.exception forKey:@"exception"];
     [aCoder encodeObject:self.user forKey:@"user"];
+    [aCoder encodeObject:self.formatString forKey:@"formatString"];
 }
 
 #pragma mark Private

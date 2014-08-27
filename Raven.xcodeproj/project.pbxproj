@@ -21,6 +21,8 @@
 		0A46FEC6156FA72300D97F26 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 0A46FEC4156FA72300D97F26 /* InfoPlist.strings */; };
 		0A46FEC9156FA72300D97F26 /* RavenMessageTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 0A46FEC8156FA72300D97F26 /* RavenMessageTest.m */; };
 		0A46FEDA156FA8D900D97F26 /* RavenClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 0A46FED9156FA8D900D97F26 /* RavenClient.m */; };
+		56C09B1019ADD49000BDF499 /* NSError+Stacktrace.h in Headers */ = {isa = PBXBuildFile; fileRef = 56C09B0E19ADD49000BDF499 /* NSError+Stacktrace.h */; };
+		56C09B1119ADD49000BDF499 /* NSError+Stacktrace.m in Sources */ = {isa = PBXBuildFile; fileRef = 56C09B0F19ADD49000BDF499 /* NSError+Stacktrace.m */; };
 		56CB9BAD19ACB515008020D4 /* RavenMessage.m in Sources */ = {isa = PBXBuildFile; fileRef = 56E48FD719A4F2F300D32611 /* RavenMessage.m */; };
 		56CB9BB419ACC6E6008020D4 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56CB9BB319ACC6E6008020D4 /* Cocoa.framework */; };
 		56CB9BD819ACC6FD008020D4 /* RavenClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 0A46FED9156FA8D900D97F26 /* RavenClient.m */; };
@@ -58,6 +60,8 @@
 		0A46FEC8156FA72300D97F26 /* RavenMessageTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RavenMessageTest.m; sourceTree = "<group>"; };
 		0A46FED8156FA8D900D97F26 /* RavenClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RavenClient.h; sourceTree = "<group>"; };
 		0A46FED9156FA8D900D97F26 /* RavenClient.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RavenClient.m; sourceTree = "<group>"; };
+		56C09B0E19ADD49000BDF499 /* NSError+Stacktrace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSError+Stacktrace.h"; sourceTree = "<group>"; };
+		56C09B0F19ADD49000BDF499 /* NSError+Stacktrace.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSError+Stacktrace.m"; sourceTree = "<group>"; };
 		56CB9BB219ACC6E6008020D4 /* libRaven.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libRaven.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		56CB9BB319ACC6E6008020D4 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		56CB9BB619ACC6E6008020D4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -195,6 +199,8 @@
 				56E48FD719A4F2F300D32611 /* RavenMessage.m */,
 				8BAEC13C168E6FC100408CDB /* RavenConfig.h */,
 				8BAEC13D168E6FC100408CDB /* RavenConfig.m */,
+				56C09B0E19ADD49000BDF499 /* NSError+Stacktrace.h */,
+				56C09B0F19ADD49000BDF499 /* NSError+Stacktrace.m */,
 			);
 			path = Raven;
 			sourceTree = "<group>";
@@ -216,6 +222,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56C09B1019ADD49000BDF499 /* NSError+Stacktrace.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +384,7 @@
 			files = (
 				56CB9BD919ACC6FD008020D4 /* RavenMessage.m in Sources */,
 				56CB9BDA19ACC6FD008020D4 /* RavenConfig.m in Sources */,
+				56C09B1119ADD49000BDF499 /* NSError+Stacktrace.m in Sources */,
 				56CB9BD819ACC6FD008020D4 /* RavenClient.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -624,6 +632,7 @@
 				56CB9BD419ACC6E6008020D4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
