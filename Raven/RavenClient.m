@@ -104,14 +104,14 @@ void exceptionHandler(NSException *exception)
                                
                                BOOL httpSuccess = httpResponse.statusCode == 200;
                                
-                               if (!httpSuccess) {
-                                   NSLog(@"Failed to log event with Sentry! Server error %li %@",
-                                         (long)httpResponse.statusCode,
-                                         httpResponse.allHeaderFields[@"X-Sentry-Error"]);
-                               } else if (connectionError) {
+                               if (connectionError) {
                                    NSLog(@"Failed to send event to Sentry! %@ %@",
                                          connectionError.localizedDescription,
                                          connectionError.userInfo[NSURLErrorFailingURLStringErrorKey]);
+                               } else if (!httpSuccess) {
+                                   NSLog(@"Failed to log event with Sentry! Server error %li %@",
+                                         (long)httpResponse.statusCode,
+                                         httpResponse.allHeaderFields[@"X-Sentry-Error"]);
                                } else {
                                    NSLog(@"Event sent to Sentry");
                                }
