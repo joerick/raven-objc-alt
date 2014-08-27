@@ -179,6 +179,10 @@ void exceptionHandler(NSException *exception)
 {
     NSData *data = [[NSUserDefaults standardUserDefaults] dataForKey:userDefaultsKey];
     
+    if (!data) {
+        return @[];
+    }
+    
     return [NSKeyedUnarchiver unarchiveObjectWithData:data] ?: @[];
 }
 
