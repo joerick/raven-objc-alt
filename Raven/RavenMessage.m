@@ -77,7 +77,7 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
     RavenMessage *result = [RavenMessage new];
     
     result.message = error.localizedDescription;
-    result.extra = error.userInfo;
+    result.extra = [RavenMessage extraDictionaryForError:error];
     result.level = level;
     
     if ([error respondsToSelector:@selector(stacktrace)]) {
@@ -223,6 +223,25 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
     }
     
     return @{ @"frames": frames };
+}
+
++ (NSDictionary *)extraDictionaryForError:(NSError *)error
+{
+    NSMutableDictionary *result = [NSMutableDictionary dictionary];
+    
+    for (NSString *key in error.userInfo) {
+        id value = error.userInfo[key];
+        
+        if ([NSJSONSerialization isValidJSONObject:value]) {
+            result[key] = value;
+        } else if ([value isKindOfClass:[NSError class]]) {
+            result[key] = [self extraDictionaryForError:value];
+        } else {
+            result[key] = [value description];
+        }
+    }
+    
+    return result;
 }
 
 @end
