@@ -1,116 +1,83 @@
-# raven-objc
+# raven-objc-alt
 
-Objective-c client for [Sentry](https://www.getsentry.com/welcome/).
+Objective-c client for [Sentry](https://www.getsentry.com/welcome/). Fork of the [official client](https://github.com/getsentry/raven-objc).
 
+This fork changes the public interface, because I wanted to add a number of features but this would have resulted in an unweildy interface and untidy code.
 
 ## Installation
 
-The easiest way is to use [CocoaPods](http://cocoapods.org). It takes care of all required frameworks and third party dependencies:
+Install manually.
 
-```ruby
-pod 'Raven'
-```
-
-**Alternatively**, you can install manually.
-
-1. Get the code: `git clone git://github.com/getsentry/raven-objc`
+1. Get the code: `git clone git://github.com/joerick/raven-objc-alt`
 2. Drag the `Raven` subfolder to your project. Check both "copy items into destination group's folder" and your target.
 
 Alternatively you can add this code as a Git submodule:
 
 1. `cd [your project root]`
-2. `git submodule add git://github.com/getsentry/raven-objc`
+2. `git submodule add git://github.com/joerick/raven-objc-alt`
 3. Drag the `Raven` subfolder to your project. Uncheck the "copy items into destination group's folder" box, do check your target.
 
 
 ## How to get started
 
-While you are free to initialize as many instances of `RavenClient` as is appropriate for your application, there is a shared singleton instance that is globally available. This singleton instance is often configured in your app delegate's `application:didFinishLaunchingWithOptions:` method:
+The easiest way to get started is to use `+[RavenClient setupSharedClientWithDSN:]`.
 
 ```objective-c
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    [RavenClient clientWithDSN:@"[SENTRY_DSN]"];
-    // [...]
+    [RavenClient setupSharedClientWithDSN:@"http://example:dsn@server/1"];
+    //
     return YES;
 }
 ```
-The first `RavenClient` that is initialized is automatically configured as the singleton instance and becomes available via the `sharedClient` singleton method:
 
-```objective-c
-NSLog(@"I am your RavenClient singleton : %@", [RavenClient sharedClient]);
-```
+This will setup your `[RavenClient sharedClient]`, install the unhandled exception handler and send any messages that were previously deferred (as a result of a unhandled exception).
 
 ### Sending messages
 
 ```objective-c
-// Sending a basic message (note, does not include a stacktrace):
+// Sending a basic message
+[[RavenClient sharedClient] send:[RavenMessage messageWithString:@"TEST 1 2 3"]];
+
+// Sending a message with another level
+[[RavenClient sharedClient] send:[RavenMessage messageWithString:@"TEST 1 2 3" level:kRavenLogLevelWarning]];
+
+// Sending a parameterized message (these will be coalesced in Sentry according to the format string)
+[[RavenClient sharedClient] send:[RavenMessage messageWithFormat:@"Failed to discombobulate %@", name]];
+
+// Sending an error message with an NSError
+[[RavenClient sharedClient] send:[RavenMessage messageWithError:error]];
+
+// There are also convenience methods for the above on RavenClient
 [[RavenClient sharedClient] captureMessage:@"TEST 1 2 3"];
+[[RavenClient sharedClient] captureMessage:@"TEST 1 2 3" level:kRavenLogLevelDebugInfo];
+[[RavenClient sharedClient] captureFormat:@"Failed to discombobulate %@", name];
+[[RavenClient sharedClient] captureError:error];
 
-// Sending a message with another level and a stacktrace:
-[[RavenClient sharedClient] captureMessage:@"TEST 1 2 3" level:kRavenLogLevelDebugInfo method:__FUNCTION__ file:__FILE__ line:__LINE__];
-
-// Recommended macro to send a message with automatic stacktrace:
-RavenCaptureMessage(@"TEST %i %@ %f", 1, @"2", 3.0);
+// and a macro for convenient format-string logging
+RavenLog(@"Failed to discombobulate %@", name);
 ```
 
-### Handling exceptions
-
-Setup a global exception handler:
+You can also manipulate the RavenMessage object itself, to change the level, add tags or extra information, or change other properties before it is sent.
 
 ```objective-c
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    [RavenClient clientWithDSN:@"https://[public]:[secret]@[server]/[project id]"];
-    [[RavenClient sharedClient] setupExceptionHandler];
-    // [...]
-    return YES;
-}
+RavenMessage *message = [RavenMessage messageWithString:@"Arithmetic error"];
+
+message.level = kRavenLogLevelError;
+message.tags = @{ @"difficulty": @"easy" };
+message.extra = @{ @"sum": @"2 + 2" };
+
+[[RavenClient sharedClient] send:message];
 ```
 
-Or, capture a single exception:
+### Supplying contextual information
+
+Additional information to be added to messages can be supplied to the RavenClient.
 
 ```objective-c
-@try {
-    [self performSelector:@selector(nonExistingSelector)];
-}
-@catch (NSException *exception) {
-    [[RavenClient sharedClient] captureException:exception];
-}
-```
-
-*Note: when using the global exception handler, exceptions will be sent the __next__ time the app is started.*
-
-
-## Requirements
-
-### JSON
-
-raven-objc uses [`NSJSONSerialization`](http://developer.apple.com/library/mac/#documentation/Foundation/Reference/NSJSONSerialization_Class/Reference/Reference.html) to generate the JSON payload, if it is available. If your app targets a platform where this class is not available (i.e. iOS < 5.0) you can include one of the following JSON libraries to your project for raven-objc to automatically detect and use.
-
-* [JSONKit](https://github.com/johnezang/JSONKit)
-* [SBJson](https://stig.github.com/json-framework/)
-* [YAJL](https://lloyd.github.com/yajl/)
-* [NextiveJson](https://github.com/nextive/NextiveJson)
-
-### ARC Support
-
-raven-objc requires ARC support and should run on iOS 4.0 and Mac OS X 10.6.
-
-## Issues and questions
-
-Have a bug? Please create an issue on GitHub!
-
-https://github.com/getsentry/raven-objc/issues
-
-
-## Contributing
-
-raven-objc is an open source project and your contribution is very much appreciated.
-
-1. Check for [open issues](https://github.com/getsentry/raven-objc/issues) or [open a fresh issue](https://github.com/getsentry/raven-objc/issues/new) to start a discussion around a feature idea or a bug.
-2. Fork the [repository on Github](https://github.com/getsentry/raven-objc) and make your changes.
-3. Make sure to add yourself to AUTHORS and send a pull request.
-
+[RavenClient sharedClient].tags = @{ @"timezone": [[NSTimeZone systemTimeZone] name] };
+[RavenClient sharedClient].user = @{ @"id": @"bob@example.com" };
+[RavenClient sharedClient].extra = @{ /* something */ };
 
 ## License
 
-raven-objc is available under the MIT license. See the LICENSE file for more info.
+raven-objc-alt is available under the MIT license. See the LICENSE file for more info.
