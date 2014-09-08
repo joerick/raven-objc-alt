@@ -1,6 +1,5 @@
 //
-//  NSError+JSErrorStacktrace.m
-//  JSErrorStacktrace_SampleProject
+//  NSError+Stacktrace.m
 //
 //  Created by Javier Soto on 3/20/13.
 //  Copyright (c) 2013 Javier Soto. All rights reserved.
@@ -21,6 +20,7 @@
 {
     NSArray *stackFrames = [NSThread callStackSymbols];
     
+    // trim any NSError-related frames so the last frame is the one that created the NSError
     int i;
     for (i = 0; i < stackFrames.count; i++) {
         NSString *frame = stackFrames[i];

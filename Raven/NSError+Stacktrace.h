@@ -1,6 +1,5 @@
 //
-//  NSError+JSErrorStacktrace.h
-//  JSErrorStacktrace_SampleProject
+//  NSError+Stacktrace.h
 //
 //  Created by Javier Soto on 3/20/13.
 //  Copyright (c) 2013 Javier Soto. All rights reserved.

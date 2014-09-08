@@ -3,7 +3,6 @@
 //  Raven
 //
 //  Created by Joe Rickerby on 20/08/2014.
-//  Copyright (c) 2014 Gangverk. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
@@ -16,14 +15,20 @@ typedef enum {
     kRavenLogLevelFatal
 } RavenLogLevel;
 
+/**
+ * Represents a message containing a Sentry 'event' that can be sent using -[RavenClient send:].
+ */
 @interface RavenMessage : NSObject <NSCoding>
 
 + (instancetype)messageWithString:(NSString *)messageString;
 + (instancetype)messageWithString:(NSString *)messageString level:(RavenLogLevel)level;
+
 + (instancetype)messageWithFormat:(NSString *)format, ... NS_FORMAT_FUNCTION(1,2);
 + (instancetype)messageWithLevel:(RavenLogLevel)level format:(NSString *)format, ... NS_FORMAT_FUNCTION(2,3);
+
 + (instancetype)messageWithError:(NSError *)error;
 + (instancetype)messageWithError:(NSError *)error level:(RavenLogLevel)level;
+
 + (instancetype)messageWithException:(NSException *)exception;
 + (instancetype)messageWithException:(NSException *)exception level:(RavenLogLevel)level;
 

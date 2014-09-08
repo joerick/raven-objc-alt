@@ -289,7 +289,7 @@
 			attributes = {
 				LastTestingUpgradeCheck = 0510;
 				LastUpgradeCheck = 0510;
-				ORGANIZATIONNAME = Gangverk;
+				ORGANIZATIONNAME = "";
 				TargetAttributes = {
 					0A46FEB9156FA72300D97F26 = {
 						TestTargetID = 0A46FE98156FA72300D97F26;
