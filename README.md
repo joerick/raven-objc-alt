@@ -77,6 +77,7 @@ Additional information to be added to messages can be supplied to the RavenClien
 [RavenClient sharedClient].tags = @{ @"timezone": [[NSTimeZone systemTimeZone] name] };
 [RavenClient sharedClient].user = @{ @"id": @"bob@example.com" };
 [RavenClient sharedClient].extra = @{ /* something */ };
+```
 
 ## License
 
