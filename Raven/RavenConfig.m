@@ -22,6 +22,10 @@
 @implementation RavenConfig
 
 - (instancetype)initWithDSN:(NSString *)DSN {
+    if (!DSN) {
+        return nil;
+    }
+    
     self = [super init];
     
     if (self) {

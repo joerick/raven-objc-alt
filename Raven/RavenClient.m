@@ -63,6 +63,11 @@ void exceptionHandler(NSException *exception)
 
 - (void)send:(RavenMessage *)message
 {
+    if (!self.config) {
+        // not configured, so do nothing
+        return;
+    }
+    
     if (!message.user) {
         message.user = self.user;
     }
