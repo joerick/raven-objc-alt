@@ -229,6 +229,9 @@ RavenLogLevel kRavenMessageDefaultLevel = kRavenLogLevelInfo;
 {
     NSMutableDictionary *result = [NSMutableDictionary dictionary];
     
+    result[@"domain"] = error.domain;
+    result[@"code"] = @(error.code);
+    
     for (NSString *key in error.userInfo) {
         id value = error.userInfo[key];
         
