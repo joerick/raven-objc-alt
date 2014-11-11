@@ -61,6 +61,17 @@ void exceptionHandler(NSException *exception)
 
 #pragma mark - Instance
 
+- (instancetype)init
+{
+    self = [super init];
+    
+    if (self) {
+        self.sendDefaultTags = YES;
+    }
+    
+    return self;
+}
+
 - (void)send:(RavenMessage *)message
 {
     if (!self.config) {
@@ -72,7 +83,8 @@ void exceptionHandler(NSException *exception)
         message.user = self.user;
     }
     
-    NSDictionary *messageDictionary = [message dictionaryRepresentationWithExtra:self.extra tags:self.tags];
+    NSDictionary *messageDictionary = [message dictionaryRepresentationWithExtra:self.extra
+                                                                            tags:self.tagsWithDefaults];
     
     NSError *error = nil;
     
